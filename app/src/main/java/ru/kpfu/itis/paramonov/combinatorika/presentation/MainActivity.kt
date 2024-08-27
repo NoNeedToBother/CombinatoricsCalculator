@@ -1,10 +1,12 @@
-package ru.kpfu.itis.paramonov.combinatorika
+package ru.kpfu.itis.paramonov.combinatorika.presentation
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import dagger.hilt.android.AndroidEntryPoint
 import ru.kpfu.itis.paramonov.combinatorika.databinding.ActivityMainBinding
-import ru.kpfu.itis.paramonov.combinatorika.fragments.MainFragment
+import ru.kpfu.itis.paramonov.combinatorika.presentation.fragments.MainFragment
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     private var _binding: ActivityMainBinding? = null
     private val binding: ActivityMainBinding get() = _binding!!

@@ -1,8 +1,46 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+buildscript {
+    ext {
+        versionName = '1.0.0'
+        versionCode = 1
+
+        compileSdkVersion = 34
+        minSdkVersion = 24
+        targetSdkVersion = 34
+
+        viewBindingDelegateVersion = "1.5.9"
+        viewBindingDelegate = "com.github.kirich1409:viewbindingpropertydelegate-noreflection:$viewBindingDelegateVersion"
+
+        androidxCoreVersion = "1.13.1"
+        androidXCore = "androidx.core:core-ktx:$androidxCoreVersion"
+        androidXCompatVersion = "1.7.0"
+        androidXCompat = "androidx.appcompat:appcompat:$androidXCompatVersion"
+        materialVersion = "1.12.0"
+        material = "com.google.android.material:material:$materialVersion"
+
+        jLatexVersion = "0.2.0"
+        jLatex = "ru.noties:jlatexmath-android:$jLatexVersion"
+
+        viewModelKtxVersion = "2.8.4"
+        viewModelKtx = "androidx.lifecycle:lifecycle-viewmodel-ktx:$viewModelKtxVersion"
+        fragmentKtxVersion = "1.8.2"
+        fragmentKtx = "androidx.fragment:fragment-ktx:$fragmentKtxVersion"
+
+        coroutinesVersion = "1.7.3"
+        coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
+
+        daggerHiltVersion = "2.49"
+        daggerHilt = "com.google.dagger:hilt-android:$daggerHiltVersion"
+        daggerHiltCompiler = "com.google.dagger:hilt-compiler:$daggerHiltVersion"
+    }
+}
+
 plugins {
     id 'com.android.application' version '8.0.2' apply false
     id 'com.android.library' version '8.0.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.8.20' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.21' apply false
+    id "com.google.devtools.ksp" version "1.9.21-1.0.15" apply false
+    id("com.google.dagger.hilt.android") version "2.49" apply false
 }
 

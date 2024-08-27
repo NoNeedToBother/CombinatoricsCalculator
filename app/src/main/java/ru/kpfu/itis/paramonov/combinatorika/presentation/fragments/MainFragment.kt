@@ -1,22 +1,98 @@
-package ru.kpfu.itis.paramonov.combinatorika.util
+package ru.kpfu.itis.paramonov.combinatorika.presentation.fragments
 
 import android.annotation.SuppressLint
-import android.content.Context
+import android.os.Bundle
 import android.view.View
+import android.widget.AdapterView
+import android.widget.AdapterView.OnItemSelectedListener
+import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.Toast
 import androidx.core.text.isDigitsOnly
+import androidx.fragment.app.Fragment
+import by.kirich1409.viewbindingdelegate.viewBinding
+import dagger.hilt.android.AndroidEntryPoint
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.databinding.FragmentMainBinding
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
+import ru.kpfu.itis.paramonov.combinatorika.util.MathHelper
 import ru.noties.jlatexmath.JLatexMathDrawable
+import javax.inject.Inject
 
-class FormulaHandler(private val context : Context?, private val binding: FragmentMainBinding) {
-    fun handle(formula : String) {
+@AndroidEntryPoint
+class MainFragment : Fragment(R.layout.fragment_main) {
+
+    private val formulas = arrayOf(
+        Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
+    )
+
+    private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
+
+    private var formula : Formula? = null
+
+    @Inject
+    lateinit var mathHelper: MathHelper
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        init()
+    }
+
+    private fun init() {
+        with(binding) {
+            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, formulas)
+            adapter.setDropDownViewResource(androidx.constraintlayout.widget.R.layout.support_simple_spinner_dropdown_item)
+            spinnerFormulas.adapter = adapter
+            spinnerFormulas.onItemSelectedListener = getOnItemSelectedListener()
+
+        }
+    }
+
+    private fun getOnItemSelectedListener() = object : OnItemSelectedListener {
+        override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
+            rollback()
+            formula = parent?.getItemAtPosition(pos) as Formula?
+            formula?.let { handleFormula(it) }
+        }
+
+        override fun onNothingSelected(parent: AdapterView<*>?) {}
+    }
+
+    private fun rollback() {
+        with(binding) {
+            varN.visibility = View.GONE
+            etN.text.clear()
+            varK.visibility = View.GONE
+            etK.text.clear()
+            varM.visibility = View.GONE
+            etM.text.clear()
+            varR.visibility = View.GONE
+            etR.text.clear()
+            varN1Nk.visibility = View.GONE
+            etN1ToNk.text.clear()
+
+            tvRes.setText(R.string.empty_str)
+
+            radioGrpUrn.visibility = View.GONE
+            radioBtnAll.isChecked = false
+            radioBtnR.isChecked = false
+
+            chkBoxRepetitions.visibility = View.GONE
+            chkBoxRepetitions.setOnClickListener {  }
+            chkBoxRepetitions.isChecked = false
+
+            ivLatex.setImageDrawable(null)
+        }
+    }
+
+    //TODO("Refactor to view model")
+
+    fun handleFormula(formula : Formula) {
         when(formula) {
-            "Placements" -> handlePlacements()
-            "Permutations" -> handlePermutations()
-            "Combinations" -> handleCombinations()
-            "Urn scheme" -> handleUrnScheme()
+            Formula.PLACEMENTS -> handlePlacements()
+            Formula.PERMUTATIONS -> handlePermutations()
+            Formula.COMBINATIONS -> handleCombinations()
+            Formula.URN_SCHEME -> handleUrnScheme()
         }
     }
 
@@ -27,16 +103,16 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
             varK.visibility = View.VISIBLE
             chkBoxRepetitions.visibility = View.VISIBLE
 
-            val latexNoRepet = "\\mathnormal{A}_{n}^{k}: \\frac{n!}{(n - k)!} = "
-            val latexRepet = "\\bar{\\mathnormal{A}}_{n}^{k}: n^{k} = "
+            val latexNoRepetitions = getString(R.string.placements_latex_no_repetitions)
+            val latexRepetitions = getString(R.string.placements_latex_repetitions)
 
-            drawLatex(latexNoRepet)
+            drawLatex(latexNoRepetitions)
 
             chkBoxRepetitions.setOnClickListener {
                 tvRes.text = ""
                 it as CheckBox
-                if (it.isChecked) drawLatex(latexRepet)
-                else drawLatex(latexNoRepet)
+                if (it.isChecked) drawLatex(latexRepetitions)
+                else drawLatex(latexNoRepetitions)
             }
 
             btnRes.setOnClickListener {
@@ -48,13 +124,12 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
                 else if ((n.toInt() < k.toInt()) && !chkBoxRepetitions.isChecked) showToast(R.string.invalid_arguments)
                 else {
                     if (chkBoxRepetitions.isChecked) {
-                        val res = MathHelper.placements(n.toInt(), k.toInt(), true)
+                        val res = mathHelper.placements(n.toInt(), k.toInt(), true)
                         tvRes.text = res.toString()
                     } else {
-                        val res = MathHelper.placements(n.toInt(), k.toInt(), false)
+                        val res = mathHelper.placements(n.toInt(), k.toInt(), false)
                         tvRes.text = res.toString()
                     }
-
                 }
             }
         }
@@ -66,19 +141,19 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
             varN.visibility = View.VISIBLE
             chkBoxRepetitions.visibility = View.VISIBLE
 
-            val latexNoRepet = "\\mathnormal{P}_{n}: n! = "
-            val latexRepet = "\\mathnormal{P}_{n}(n_{1},...n_{k}): \\frac{n!}{n_{1}!...n_{k}!} = "
-            drawLatex(latexNoRepet)
+            val latexNoRepetitions = getString(R.string.permutations_latex_no_repetitions)
+            val latexRepetitions = getString(R.string.permutations_latex_repetitions)
+            drawLatex(latexNoRepetitions)
 
             chkBoxRepetitions.setOnClickListener {
                 tvRes.text = ""
                 it as CheckBox
                 if (it.isChecked) {
                     varN1Nk.visibility = View.VISIBLE
-                    drawLatex(latexRepet)
+                    drawLatex(latexRepetitions)
                 }
                 else {
-                    drawLatex(latexNoRepet)
+                    drawLatex(latexNoRepetitions)
                     varN1Nk.visibility = View.GONE
                 }
             }
@@ -92,10 +167,10 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
                 else {
                     if (chkBoxRepetitions.isChecked) {
                         val nIntVars = checkNVars(n.toInt(), nVars) ?: return@setOnClickListener
-                        val res = MathHelper.permutations(n.toInt(), true, *nIntVars)
+                        val res = mathHelper.permutations(n.toInt(), true, *nIntVars)
                         tvRes.text = res.toString()
                     } else {
-                        val res = MathHelper.permutations(n.toInt(), false)
+                        val res = mathHelper.permutations(n.toInt(), false)
                         tvRes.text = res.toString()
                     }
 
@@ -111,16 +186,16 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
             varK.visibility = View.VISIBLE
             chkBoxRepetitions.visibility = View.VISIBLE
 
-            val latexRepet = "\\bar{\\mathnormal{C}}_{n}^{k}: \\mathrm{C}_{n+k-1}^{k} = "
-            val latexNoRepet = "\\mathnormal{C}_{n}^{k}: \\frac{n!}{k!(n-k)!} = "
+            val latexRepetitions = getString(R.string.combinations_latex_repetitions)
+            val latexNoRepetitions = getString(R.string.combinations_latex_no_repetitions)
 
-            drawLatex(latexNoRepet)
+            drawLatex(latexNoRepetitions)
 
             chkBoxRepetitions.setOnClickListener {
                 tvRes.text = ""
                 it as CheckBox
-                if (it.isChecked) drawLatex(latexRepet)
-                else drawLatex(latexNoRepet)
+                if (it.isChecked) drawLatex(latexRepetitions)
+                else drawLatex(latexNoRepetitions)
             }
 
             btnRes.setOnClickListener {
@@ -132,10 +207,10 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
                 else if ((n.toInt() < k.toInt()) && !(chkBoxRepetitions.isChecked)) showToast(R.string.invalid_arguments)
                 else {
                     if (chkBoxRepetitions.isChecked) {
-                        val res = MathHelper.combinations(n.toInt(), k.toInt(), true)
+                        val res = mathHelper.combinations(n.toInt(), k.toInt(), true)
                         tvRes.text = res.toString()
                     } else {
-                        val res = MathHelper.combinations(n.toInt(), k.toInt(), false)
+                        val res = mathHelper.combinations(n.toInt(), k.toInt(), false)
                         tvRes.text = res.toString()
                     }
                 }
@@ -150,19 +225,19 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
             varM.visibility = View.VISIBLE
             varK.visibility = View.VISIBLE
 
-            val latexAll = "\\mathnormal{P(A)} : \\frac{\\mathnormal{C}_{m}^{k}}{\\mathnormal{C}_{n}^{k}} = "
-            val latexR = "\\mathnormal{P(A)} : \\frac{\\mathnormal{C}_{m}^{r}\\mathnormal{C}_{n-m}^{k-r}}{\\mathnormal{C}_{n}^{k}} = "
+            val latexAll = getString(R.string.urn_scheme_latex_all)
+            val latexR = getString(R.string.urn_scheme_latex_r)
 
             radioBtnR.setOnClickListener {
                 varR.visibility = View.VISIBLE
-                tvRes.text = ""
+                tvRes.setText(R.string.empty_str)
                 radioBtnAll.isChecked = false
                 drawLatex(latexR)
             }
 
             radioBtnAll.setOnClickListener {
                 varR.visibility = View.GONE
-                tvRes.text = ""
+                tvRes.setText(R.string.empty_str)
                 radioBtnR.isChecked = false
                 drawLatex(latexAll)
             }
@@ -178,8 +253,10 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
                 val k = etK.text.toString()
                 val r = etR.text.toString()
 
-                if (n.isEmpty() || m.isEmpty() || k.isEmpty() || (radioBtnR.isChecked && r.isEmpty())) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || m.toInt() < 0 || k.toInt() < 0 || (radioBtnR.isChecked && r.toInt() < 0)) showToast(R.string.negative_vars)
+                if (n.isEmpty() || m.isEmpty() || k.isEmpty() || (radioBtnR.isChecked && r.isEmpty()))
+                    showToast(R.string.missing_variables)
+                else if (n.toInt() < 0 || m.toInt() < 0 || k.toInt() < 0 || (radioBtnR.isChecked && r.toInt() < 0))
+                    showToast(R.string.negative_vars)
                 else {
                     if (k.toInt() >= m.toInt() || m.toInt() >= n.toInt()) {
                         showToast(R.string.invalid_arguments)
@@ -190,11 +267,11 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
                             showToast(R.string.invalid_arguments)
                             return@setOnClickListener
                         }
-                        val res = MathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt(), r.toInt())
+                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt(), r.toInt())
                         tvRes.text = res.toPlainString()
                     }
                     else {
-                        val res = MathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt())
+                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt())
                         tvRes.text = res.toPlainString()
                     }
                 }
@@ -242,7 +319,12 @@ class FormulaHandler(private val context : Context?, private val binding: Fragme
             return intArray
         }
     }
+
     private fun showToast(message: Int) {
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    }
+
+    companion object {
+        const val START_FRAGMENT_TAG = "MAIN_FRAGMENT"
     }
 }

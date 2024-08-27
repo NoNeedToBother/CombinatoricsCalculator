@@ -1,20 +1,38 @@
 <resources>
-    <string name="app_name">Combinatorika</string>
-<!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="app_name">Combinatorics</string>
+
+    <string name="empty_str"/>
+
     <string name="allow_repetitions">Allow repetitions</string>
     <string name="all_items">All K items</string>
     <string name="r_items">R items out of K</string>
+
     <string name="get_res">Get result</string>
     <string name="var_n">n =</string>
     <string name="var_k">k =</string>
     <string name="var_r">r =</string>
     <string name="var_m">m =</string>
+
     <string name="no_formula">Choose a formula</string>
     <string name="missing_variables">Input all variables</string>
     <string name="not_number">At least one of the variables is not a number</string>
     <string name="vars_n_not_summing_up">Sum of k variables does not sum up to n</string>
-    <string name="negative_vars">Varibales cannot be negative</string>
+
+    <string name="negative_vars">Variables cannot be negative</string>
     <string name="invalid_arguments">Some of variables are invalid for chosen formula</string>
     <string name="option_not_chosen">Choose item amount</string>
+
+    <string name="urn_scheme_latex_all">
+        \\mathnormal{P(A)} : \\frac{\\mathnormal{C}_{m}^{k}}{\\mathnormal{C}_{n}^{k}} = </string>
+    <string name="urn_scheme_latex_r">
+        \\mathnormal{P(A)} : \\frac{\\mathnormal{C}_{m}^{r}\\mathnormal{C}_{n-m}^{k-r}}{\\mathnormal{C}_{n}^{k}} = </string>
+
+    <string name="combinations_latex_repetitions">\\bar{\\mathnormal{C}}_{n}^{k}: \\mathrm{C}_{n+k-1}^{k} = </string>
+    <string name="combinations_latex_no_repetitions">\\mathnormal{C}_{n}^{k}: \\frac{n!}{k!(n-k)!} = </string>
+
+    <string name="permutations_latex_no_repetitions">\\mathnormal{P}_{n}: n! = </string>
+    <string name="permutations_latex_repetitions">\\mathnormal{P}_{n}(n_{1},…n_{k}): \\frac{n!}{n_{1}!…n_{k}!} = </string>
+
+    <string name="placements_latex_no_repetitions">\\mathnormal{A}_{n}^{k}: \\frac{n!}{(n - k)!} = </string>
+    <string name="placements_latex_repetitions">\\bar{\\mathnormal{A}}_{n}^{k}: n^{k} = </string>
 </resources>
