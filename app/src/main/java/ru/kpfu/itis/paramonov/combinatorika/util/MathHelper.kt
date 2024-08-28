@@ -1,5 +1,6 @@
 package ru.kpfu.itis.paramonov.combinatorika.util
 
+import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.ComputationException
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.RoundingMode
@@ -30,14 +31,16 @@ class MathHelper @Inject constructor() {
         else factorial(n).divide(factorial(n - k))
     }
 
-    fun permutations(n: Int, repetitions: Boolean, vararg nVars: Int) : BigInteger{
+    fun permutations(n: Int, repetitions: Boolean, nVars: List<Int>? = null) : BigInteger {
         var res = factorial(n)
-        if (!repetitions) return res
+        return if (!repetitions) res
         else {
-            for(nVar in nVars) {
-                res = res.divide(factorial(nVar))
-            }
-            return res
+            nVars?.let {
+                for (nVar in nVars) {
+                    res = res.divide(factorial(nVar))
+                }
+                res
+            } ?: throw ComputationException(NO_VARS_WITH_REPETITIONS_ALLOWED)
         }
     }
 
@@ -60,5 +63,7 @@ class MathHelper @Inject constructor() {
 
     companion object {
         private const val SCALE = 5
+
+        private const val NO_VARS_WITH_REPETITIONS_ALLOWED = "No variables were provided with repetitions allowed"
     }
 }

@@ -22,6 +22,8 @@
     <string name="invalid_arguments">Some of variables are invalid for chosen formula</string>
     <string name="option_not_chosen">Choose item amount</string>
 
+    <string name="computations_fail">Something went wrong when computing, try again later or adjust variables</string>
+
     <string name="urn_scheme_latex_all">
         \\mathnormal{P(A)} : \\frac{\\mathnormal{C}_{m}^{k}}{\\mathnormal{C}_{n}^{k}} = </string>
     <string name="urn_scheme_latex_r">

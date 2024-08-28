@@ -1,26 +1,32 @@
-package ru.kpfu.itis.paramonov.combinatorika.presentation.fragments
+package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
 import android.annotation.SuppressLint
-import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
 import android.widget.AdapterView.OnItemSelectedListener
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
-import android.widget.Toast
-import androidx.core.text.isDigitsOnly
-import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.flowWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.databinding.FragmentMainBinding
+import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
-import ru.kpfu.itis.paramonov.combinatorika.util.MathHelper
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewModel
 import ru.noties.jlatexmath.JLatexMathDrawable
-import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainFragment : Fragment(R.layout.fragment_main) {
+class MainFragment: BaseFragment(R.layout.fragment_main) {
 
     private val formulas = arrayOf(
         Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
@@ -28,31 +34,41 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
     private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
 
-    private var formula : Formula? = null
+    private val viewModel: MainViewModel by viewModels()
 
-    @Inject
-    lateinit var mathHelper: MathHelper
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        init()
-    }
-
-    private fun init() {
+    override fun initView() {
         with(binding) {
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, formulas)
             adapter.setDropDownViewResource(androidx.constraintlayout.widget.R.layout.support_simple_spinner_dropdown_item)
             spinnerFormulas.adapter = adapter
             spinnerFormulas.onItemSelectedListener = getOnItemSelectedListener()
-
         }
+    }
+
+    override fun observeData() {
+        viewModel.currentFormulaFlow.onEach { formula ->
+            formula?.let { handleFormula(formula) }
+        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
+            .launchIn(viewLifecycleOwner.lifecycleScope)
+
+        viewModel.formulaResultFlow.onEach { result ->
+            result?.let {
+                when (result) {
+                    is MainViewModel.FormulaResult.Success -> binding.tvRes.text = result.getValue().toString()
+                    is MainViewModel.FormulaResult.Failure -> showToast(result.getException().message ?:
+                        getString(R.string.computations_fail))
+                }
+            }
+        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
+            .launchIn(viewLifecycleOwner.lifecycleScope)
     }
 
     private fun getOnItemSelectedListener() = object : OnItemSelectedListener {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
             rollback()
-            formula = parent?.getItemAtPosition(pos) as Formula?
-            formula?.let { handleFormula(it) }
+            (parent?.getItemAtPosition(pos) as Formula?)?.let { formula ->
+                viewModel.onIntent(MainScreenIntent.OnFormulaChosen(formula))
+            }
         }
 
         override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -85,9 +101,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
     }
 
-    //TODO("Refactor to view model")
-
-    fun handleFormula(formula : Formula) {
+    private fun handleFormula(formula : Formula) {
         when(formula) {
             Formula.PLACEMENTS -> handlePlacements()
             Formula.PERMUTATIONS -> handlePermutations()
@@ -120,16 +134,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val k = etK.text.toString()
 
                 if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || k.toInt() < 0) showToast(R.string.negative_vars)
-                else if ((n.toInt() < k.toInt()) && !chkBoxRepetitions.isChecked) showToast(R.string.invalid_arguments)
                 else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val res = mathHelper.placements(n.toInt(), k.toInt(), true)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.placements(n.toInt(), k.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        PlacementsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
+                    ))
                 }
             }
         }
@@ -160,20 +168,16 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
             btnRes.setOnClickListener {
                 val n = etN.text.toString()
-                val nVars = etN1ToNk.text.toString().split(",")
+                val nVars =
+                    if (chkBoxRepetitions.isChecked)
+                        etN1ToNk.text.toString().split(",").map { str -> str.toInt() }
+                    else null
 
-                if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars.isEmpty())) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0) showToast(R.string.negative_vars)
+                if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars?.isEmpty() == true)) showToast(R.string.missing_variables)
                 else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val nIntVars = checkNVars(n.toInt(), nVars) ?: return@setOnClickListener
-                        val res = mathHelper.permutations(n.toInt(), true, *nIntVars)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.permutations(n.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
-
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        PermutationsRequest(n.toInt(), nVars, chkBoxRepetitions.isChecked)
+                    ))
                 }
             }
         }
@@ -203,16 +207,10 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val k = etK.text.toString()
 
                 if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || k.toInt() < 0) showToast(R.string.negative_vars)
-                else if ((n.toInt() < k.toInt()) && !(chkBoxRepetitions.isChecked)) showToast(R.string.invalid_arguments)
                 else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val res = mathHelper.combinations(n.toInt(), k.toInt(), true)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.combinations(n.toInt(), k.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        CombinationsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
+                    ))
                 }
             }
         }
@@ -231,14 +229,12 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             radioBtnR.setOnClickListener {
                 varR.visibility = View.VISIBLE
                 tvRes.setText(R.string.empty_str)
-                radioBtnAll.isChecked = false
                 drawLatex(latexR)
             }
 
             radioBtnAll.setOnClickListener {
                 varR.visibility = View.GONE
                 tvRes.setText(R.string.empty_str)
-                radioBtnR.isChecked = false
                 drawLatex(latexAll)
             }
 
@@ -251,29 +247,16 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val n = etN.text.toString()
                 val m = etM.text.toString()
                 val k = etK.text.toString()
-                val r = etR.text.toString()
+                val r = if (radioBtnR.isChecked) etR.text.toString()
+                    else null
 
-                if (n.isEmpty() || m.isEmpty() || k.isEmpty() || (radioBtnR.isChecked && r.isEmpty()))
+                if (n.isEmpty() || m.isEmpty() || k.isEmpty() ||
+                    (radioBtnR.isChecked && r?.isEmpty() == true))
                     showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || m.toInt() < 0 || k.toInt() < 0 || (radioBtnR.isChecked && r.toInt() < 0))
-                    showToast(R.string.negative_vars)
                 else {
-                    if (k.toInt() >= m.toInt() || m.toInt() >= n.toInt()) {
-                        showToast(R.string.invalid_arguments)
-                        return@setOnClickListener
-                    }
-                    if (radioBtnR.isChecked) {
-                        if (r.toInt() >= k.toInt()) {
-                            showToast(R.string.invalid_arguments)
-                            return@setOnClickListener
-                        }
-                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt(), r.toInt())
-                        tvRes.text = res.toPlainString()
-                    }
-                    else {
-                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt())
-                        tvRes.text = res.toPlainString()
-                    }
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        UrnSchemeRequest(n.toInt(), m.toInt(), k.toInt(), r?.toInt())
+                    ))
                 }
             }
         }
@@ -286,42 +269,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             .build()
 
         binding.ivLatex.setImageDrawable(drawable)
-    }
-
-    private fun checkNVars(n : Int, nVars : List<String>) : IntArray? {
-        for (nVar in nVars) {
-            if (!nVar.isDigitsOnly()) {
-                showToast(R.string.not_number)
-                return null
-            }
-        }
-
-        val nIntVars = ArrayList<Int>()
-        for (nVar in nVars) {
-            nIntVars.add(nVar.toInt())
-        }
-
-        var sumNVars = 0
-
-        for (nVar in nIntVars) {
-            sumNVars += nVar
-        }
-
-        if (sumNVars != n) {
-            showToast(R.string.vars_n_not_summing_up)
-            return null
-        }
-        else {
-            val intArray = IntArray(nIntVars.size)
-            for (i in nIntVars.indices) {
-                intArray[i] = nIntVars[i]
-            }
-            return intArray
-        }
-    }
-
-    private fun showToast(message: Int) {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 
     companion object {

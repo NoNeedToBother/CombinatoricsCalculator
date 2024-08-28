@@ -4,7 +4,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import dagger.hilt.android.AndroidEntryPoint
 import ru.kpfu.itis.paramonov.combinatorika.databinding.ActivityMainBinding
-import ru.kpfu.itis.paramonov.combinatorika.presentation.fragments.MainFragment
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments.MainFragment
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
