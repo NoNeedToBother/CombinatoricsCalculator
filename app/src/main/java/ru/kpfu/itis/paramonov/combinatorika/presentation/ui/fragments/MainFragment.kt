@@ -1,4 +1,4 @@
-package ru.kpfu.itis.paramonov.combinatorika.presentation.fragments
+package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -8,7 +8,6 @@ import android.widget.AdapterView.OnItemSelectedListener
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
 import android.widget.Toast
-import androidx.core.text.isDigitsOnly
 import androidx.fragment.app.Fragment
 import by.kirich1409.viewbindingdelegate.viewBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -114,24 +113,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 if (it.isChecked) drawLatex(latexRepetitions)
                 else drawLatex(latexNoRepetitions)
             }
-
-            btnRes.setOnClickListener {
-                val n = etN.text.toString()
-                val k = etK.text.toString()
-
-                if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || k.toInt() < 0) showToast(R.string.negative_vars)
-                else if ((n.toInt() < k.toInt()) && !chkBoxRepetitions.isChecked) showToast(R.string.invalid_arguments)
-                else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val res = mathHelper.placements(n.toInt(), k.toInt(), true)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.placements(n.toInt(), k.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
-                }
-            }
         }
     }
 
@@ -163,18 +144,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val nVars = etN1ToNk.text.toString().split(",")
 
                 if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars.isEmpty())) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0) showToast(R.string.negative_vars)
-                else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val nIntVars = checkNVars(n.toInt(), nVars) ?: return@setOnClickListener
-                        val res = mathHelper.permutations(n.toInt(), true, *nIntVars)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.permutations(n.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
-
-                }
             }
         }
     }
@@ -203,17 +172,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val k = etK.text.toString()
 
                 if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || k.toInt() < 0) showToast(R.string.negative_vars)
-                else if ((n.toInt() < k.toInt()) && !(chkBoxRepetitions.isChecked)) showToast(R.string.invalid_arguments)
-                else {
-                    if (chkBoxRepetitions.isChecked) {
-                        val res = mathHelper.combinations(n.toInt(), k.toInt(), true)
-                        tvRes.text = res.toString()
-                    } else {
-                        val res = mathHelper.combinations(n.toInt(), k.toInt(), false)
-                        tvRes.text = res.toString()
-                    }
-                }
             }
         }
     }
@@ -255,26 +213,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
                 if (n.isEmpty() || m.isEmpty() || k.isEmpty() || (radioBtnR.isChecked && r.isEmpty()))
                     showToast(R.string.missing_variables)
-                else if (n.toInt() < 0 || m.toInt() < 0 || k.toInt() < 0 || (radioBtnR.isChecked && r.toInt() < 0))
-                    showToast(R.string.negative_vars)
-                else {
-                    if (k.toInt() >= m.toInt() || m.toInt() >= n.toInt()) {
-                        showToast(R.string.invalid_arguments)
-                        return@setOnClickListener
-                    }
-                    if (radioBtnR.isChecked) {
-                        if (r.toInt() >= k.toInt()) {
-                            showToast(R.string.invalid_arguments)
-                            return@setOnClickListener
-                        }
-                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt(), r.toInt())
-                        tvRes.text = res.toPlainString()
-                    }
-                    else {
-                        val res = mathHelper.urnScheme(n.toInt(), m.toInt(), k.toInt())
-                        tvRes.text = res.toPlainString()
-                    }
-                }
             }
         }
     }
@@ -286,38 +224,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             .build()
 
         binding.ivLatex.setImageDrawable(drawable)
-    }
-
-    private fun checkNVars(n : Int, nVars : List<String>) : IntArray? {
-        for (nVar in nVars) {
-            if (!nVar.isDigitsOnly()) {
-                showToast(R.string.not_number)
-                return null
-            }
-        }
-
-        val nIntVars = ArrayList<Int>()
-        for (nVar in nVars) {
-            nIntVars.add(nVar.toInt())
-        }
-
-        var sumNVars = 0
-
-        for (nVar in nIntVars) {
-            sumNVars += nVar
-        }
-
-        if (sumNVars != n) {
-            showToast(R.string.vars_n_not_summing_up)
-            return null
-        }
-        else {
-            val intArray = IntArray(nIntVars.size)
-            for (i in nIntVars.indices) {
-                intArray[i] = nIntVars[i]
-            }
-            return intArray
-        }
     }
 
     private fun showToast(message: Int) {
