@@ -1,25 +1,32 @@
 package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
 import android.annotation.SuppressLint
-import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
 import android.widget.AdapterView.OnItemSelectedListener
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
-import android.widget.Toast
-import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.flowWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.databinding.FragmentMainBinding
+import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
-import ru.kpfu.itis.paramonov.combinatorika.util.MathHelper
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewModel
 import ru.noties.jlatexmath.JLatexMathDrawable
-import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainFragment : Fragment(R.layout.fragment_main) {
+class MainFragment: BaseFragment(R.layout.fragment_main) {
 
     private val formulas = arrayOf(
         Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
@@ -27,31 +34,41 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
     private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
 
-    private var formula : Formula? = null
+    private val viewModel: MainViewModel by viewModels()
 
-    @Inject
-    lateinit var mathHelper: MathHelper
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        init()
-    }
-
-    private fun init() {
+    override fun initView() {
         with(binding) {
             val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, formulas)
             adapter.setDropDownViewResource(androidx.constraintlayout.widget.R.layout.support_simple_spinner_dropdown_item)
             spinnerFormulas.adapter = adapter
             spinnerFormulas.onItemSelectedListener = getOnItemSelectedListener()
-
         }
+    }
+
+    override fun observeData() {
+        viewModel.currentFormulaFlow.onEach { formula ->
+            formula?.let { handleFormula(formula) }
+        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
+            .launchIn(viewLifecycleOwner.lifecycleScope)
+
+        viewModel.formulaResultFlow.onEach { result ->
+            result?.let {
+                when (result) {
+                    is MainViewModel.FormulaResult.Success -> binding.tvRes.text = result.getValue().toString()
+                    is MainViewModel.FormulaResult.Failure -> showToast(result.getException().message ?:
+                        getString(R.string.computations_fail))
+                }
+            }
+        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
+            .launchIn(viewLifecycleOwner.lifecycleScope)
     }
 
     private fun getOnItemSelectedListener() = object : OnItemSelectedListener {
         override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
             rollback()
-            formula = parent?.getItemAtPosition(pos) as Formula?
-            formula?.let { handleFormula(it) }
+            (parent?.getItemAtPosition(pos) as Formula?)?.let { formula ->
+                viewModel.onIntent(MainScreenIntent.OnFormulaChosen(formula))
+            }
         }
 
         override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -84,9 +101,7 @@ class MainFragment : Fragment(R.layout.fragment_main) {
         }
     }
 
-    //TODO("Refactor to view model")
-
-    fun handleFormula(formula : Formula) {
+    private fun handleFormula(formula : Formula) {
         when(formula) {
             Formula.PLACEMENTS -> handlePlacements()
             Formula.PERMUTATIONS -> handlePermutations()
@@ -112,6 +127,18 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 it as CheckBox
                 if (it.isChecked) drawLatex(latexRepetitions)
                 else drawLatex(latexNoRepetitions)
+            }
+
+            btnRes.setOnClickListener {
+                val n = etN.text.toString()
+                val k = etK.text.toString()
+
+                if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
+                else {
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        PlacementsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
+                    ))
+                }
             }
         }
     }
@@ -141,9 +168,17 @@ class MainFragment : Fragment(R.layout.fragment_main) {
 
             btnRes.setOnClickListener {
                 val n = etN.text.toString()
-                val nVars = etN1ToNk.text.toString().split(",")
+                val nVars =
+                    if (chkBoxRepetitions.isChecked)
+                        etN1ToNk.text.toString().split(",").map { str -> str.toInt() }
+                    else null
 
-                if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars.isEmpty())) showToast(R.string.missing_variables)
+                if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars?.isEmpty() == true)) showToast(R.string.missing_variables)
+                else {
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        PermutationsRequest(n.toInt(), nVars, chkBoxRepetitions.isChecked)
+                    ))
+                }
             }
         }
     }
@@ -172,6 +207,11 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val k = etK.text.toString()
 
                 if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
+                else {
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        CombinationsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
+                    ))
+                }
             }
         }
     }
@@ -189,14 +229,12 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             radioBtnR.setOnClickListener {
                 varR.visibility = View.VISIBLE
                 tvRes.setText(R.string.empty_str)
-                radioBtnAll.isChecked = false
                 drawLatex(latexR)
             }
 
             radioBtnAll.setOnClickListener {
                 varR.visibility = View.GONE
                 tvRes.setText(R.string.empty_str)
-                radioBtnR.isChecked = false
                 drawLatex(latexAll)
             }
 
@@ -209,10 +247,17 @@ class MainFragment : Fragment(R.layout.fragment_main) {
                 val n = etN.text.toString()
                 val m = etM.text.toString()
                 val k = etK.text.toString()
-                val r = etR.text.toString()
+                val r = if (radioBtnR.isChecked) etR.text.toString()
+                    else null
 
-                if (n.isEmpty() || m.isEmpty() || k.isEmpty() || (radioBtnR.isChecked && r.isEmpty()))
+                if (n.isEmpty() || m.isEmpty() || k.isEmpty() ||
+                    (radioBtnR.isChecked && r?.isEmpty() == true))
                     showToast(R.string.missing_variables)
+                else {
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        UrnSchemeRequest(n.toInt(), m.toInt(), k.toInt(), r?.toInt())
+                    ))
+                }
             }
         }
     }
@@ -224,10 +269,6 @@ class MainFragment : Fragment(R.layout.fragment_main) {
             .build()
 
         binding.ivLatex.setImageDrawable(drawable)
-    }
-
-    private fun showToast(message: Int) {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 
     companion object {

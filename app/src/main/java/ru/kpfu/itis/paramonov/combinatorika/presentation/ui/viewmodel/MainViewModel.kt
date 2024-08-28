@@ -9,8 +9,11 @@ import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseViewModel
 import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.ComputationException
 import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.InvalidVariablesException
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
-import ru.kpfu.itis.paramonov.combinatorika.presentation.model.GetResultRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
 import ru.kpfu.itis.paramonov.combinatorika.util.MathHelper
 import ru.kpfu.itis.paramonov.combinatorika.util.ResourceManager
@@ -30,8 +33,14 @@ class MainViewModel @Inject constructor(
 
     override fun onIntent(intent: MainScreenIntent) {
         when (intent) {
-            is MainScreenIntent.OnFormulaChosen -> println("hello!")
+            is MainScreenIntent.OnFormulaChosen -> onFormulaChosenIntent(intent)
             is MainScreenIntent.OnGetResult -> onGetResultIntent(intent)
+        }
+    }
+
+    private fun onFormulaChosenIntent(intent: MainScreenIntent.OnFormulaChosen) {
+        viewModelScope.launch {
+            _currentFormulaFlow.value = intent.formula
         }
     }
 
@@ -44,10 +53,10 @@ class MainViewModel @Inject constructor(
     private fun onGetResultIntent(intent: MainScreenIntent.OnGetResult) {
         viewModelScope.launch {
             when (intent.req) {
-                is GetResultRequest.PlacementsRequest -> handlePlacements(intent.req)
-                is GetResultRequest.PermutationsRequest -> handlePermutations(intent.req)
-                is GetResultRequest.CombinationsRequest -> handleCombinations(intent.req)
-                is GetResultRequest.UrnSchemeRequest -> handleUrnScheme(intent.req)
+                is PlacementsRequest -> handlePlacements(intent.req)
+                is PermutationsRequest -> handlePermutations(intent.req)
+                is CombinationsRequest -> handleCombinations(intent.req)
+                is UrnSchemeRequest -> handleUrnScheme(intent.req)
             }
         }
     }
@@ -57,7 +66,7 @@ class MainViewModel @Inject constructor(
         else ComputationException(resourceManager.getString(R.string.computations_fail))
     }
 
-    private fun handlePlacements(req: GetResultRequest.PlacementsRequest) {
+    private fun handlePlacements(req: PlacementsRequest) {
         with(req) {
             if (n < 0 || k < 0) _formulaResultFlow.value = formulaResultNegativeVariablesFailure
             else if (n < k && !allowRepetitions) _formulaResultFlow.value = formulaResultInvalidVariablesFailure
@@ -72,7 +81,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun handlePermutations(req: GetResultRequest.PermutationsRequest) {
+    private fun handlePermutations(req: PermutationsRequest) {
         with(req) {
             val shouldCheckVars = req.allowRepetitions && nVars != null
             if (n < 0 || (shouldCheckVars && nVars?.indexOfFirst { n -> n < 0 } != -1))
@@ -90,7 +99,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun handleCombinations(req: GetResultRequest.CombinationsRequest) {
+    private fun handleCombinations(req: CombinationsRequest) {
         with(req) {
             if (n < 0 || k < 0) _formulaResultFlow.value = formulaResultNegativeVariablesFailure
             else if (n < k && !allowRepetitions) _formulaResultFlow.value = formulaResultInvalidVariablesFailure
@@ -105,7 +114,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    private fun handleUrnScheme(req: GetResultRequest.UrnSchemeRequest) {
+    private fun handleUrnScheme(req: UrnSchemeRequest) {
         with(req) {
             if (n < 0 || m < 0 || k < 0 || (r != null && r < 0)) _formulaResultFlow.value = formulaResultNegativeVariablesFailure
             else if (k >= m || m >= n || (r != null && r >= k)) _formulaResultFlow.value = formulaResultInvalidVariablesFailure
@@ -129,5 +138,4 @@ class MainViewModel @Inject constructor(
             override fun getException(): Throwable = ex
         }
     }
-
 }
