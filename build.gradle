@@ -34,10 +34,11 @@ buildscript {
         daggerHilt = "com.google.dagger:hilt-android:$daggerHiltVersion"
         daggerHiltCompiler = "com.google.dagger:hilt-compiler:$daggerHiltVersion"
 
-        rxJavaVersion = "3.1.9"
-        rxJavaAndroidVersion = "3.0.2"
-        rxJava = "io.reactivex.rxjava3:rxjava:$rxJavaVersion"
-        rxJavaAndroid = "io.reactivex.rxjava3:rxandroid:$rxJavaAndroidVersion"
+        composeBomVersion = "2024.08.00"
+        composeBom = "androidx.compose:compose-bom:$composeBomVersion"
+        composeMaterial = "androidx.compose.material3:material3"
+        composeViewModelVersion = "2.8.4"
+        composeViewModel = "androidx.lifecycle:lifecycle-viewmodel-compose:$composeViewModelVersion"
     }
 }
 

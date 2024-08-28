@@ -6,6 +6,12 @@ import android.widget.AdapterView
 import android.widget.AdapterView.OnItemSelectedListener
 import android.widget.ArrayAdapter
 import android.widget.CheckBox
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.sp
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -26,7 +32,7 @@ import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewMo
 import ru.noties.jlatexmath.JLatexMathDrawable
 
 @AndroidEntryPoint
-class MainFragment: BaseFragment(R.layout.fragment_main) {
+class MainFragment: BaseFragment() {
 
     private val formulas = arrayOf(
         Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
@@ -35,6 +41,24 @@ class MainFragment: BaseFragment(R.layout.fragment_main) {
     private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
 
     private val viewModel: MainViewModel by viewModels()
+
+    override fun composeView(): ComposeView {
+        return ComposeView(requireContext()).apply {
+            setContent {
+                MainScreen()
+            }
+        }
+    }
+
+    @Composable
+    fun MainScreen() {
+        Row(horizontalArrangement = Arrangement.Center) {
+            Text(
+                fontSize = 20.sp,
+                text = "Hello world!"
+            )
+        }
+    }
 
     override fun initView() {
         with(binding) {
