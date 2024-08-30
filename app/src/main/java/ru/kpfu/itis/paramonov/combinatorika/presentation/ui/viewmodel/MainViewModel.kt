@@ -25,22 +25,12 @@ class MainViewModel @Inject constructor(
     private val math: MathHelper
 ): BaseViewModel<MainScreenIntent>() {
 
-    private val _currentFormulaFlow = MutableStateFlow<Formula?>(null)
-    val currentFormulaFlow: StateFlow<Formula?> get() = _currentFormulaFlow
-
     private val _formulaResultFlow = MutableStateFlow<FormulaResult?>(null)
     val formulaResultFlow: StateFlow<FormulaResult?> get() = _formulaResultFlow
 
     override fun onIntent(intent: MainScreenIntent) {
         when (intent) {
-            is MainScreenIntent.OnFormulaChosen -> onFormulaChosenIntent(intent)
             is MainScreenIntent.OnGetResult -> onGetResultIntent(intent)
-        }
-    }
-
-    private fun onFormulaChosenIntent(intent: MainScreenIntent.OnFormulaChosen) {
-        viewModelScope.launch {
-            _currentFormulaFlow.value = intent.formula
         }
     }
 

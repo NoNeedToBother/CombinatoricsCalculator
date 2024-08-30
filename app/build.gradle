@@ -61,6 +61,9 @@ dependencies {
 
     implementation(platform(composeBom))
     implementation(composeMaterial)
+    implementation(composeUiTooling)
+    implementation(composeIconsExtended)
+    debugImplementation(composeUiToolingDebug)
     implementation(composeViewModel)
 
     testImplementation 'junit:junit:4.13.2'

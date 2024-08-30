@@ -2,23 +2,20 @@ package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
 import android.annotation.SuppressLint
 import android.view.View
-import android.widget.AdapterView
-import android.widget.AdapterView.OnItemSelectedListener
-import android.widget.ArrayAdapter
 import android.widget.CheckBox
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.flowWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import by.kirich1409.viewbindingdelegate.viewBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.databinding.FragmentMainBinding
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
@@ -27,16 +24,15 @@ import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.BaseDropdownMenu
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.state.MainScreenState
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.theme.CombinatoricsTheme
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewModel
 import ru.noties.jlatexmath.JLatexMathDrawable
 
 @AndroidEntryPoint
 class MainFragment: BaseFragment() {
-
-    private val formulas = arrayOf(
-        Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
-    )
 
     private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
 
@@ -45,57 +41,51 @@ class MainFragment: BaseFragment() {
     override fun composeView(): ComposeView {
         return ComposeView(requireContext()).apply {
             setContent {
-                MainScreen()
+                CombinatoricsTheme {
+                    MainScreen()
+                }
             }
         }
     }
 
     @Composable
+    @Preview(showBackground = true)
     fun MainScreen() {
-        Row(horizontalArrangement = Arrangement.Center) {
-            Text(
-                fontSize = 20.sp,
-                text = "Hello world!"
-            )
+        
+        val screenState by remember {
+            mutableStateOf(MainScreenState(Formula.PLACEMENTS))
+        }
+
+        val formulas = listOf(
+            Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
+        )
+        Scaffold(
+            modifier = Modifier.padding(12.dp),
+            topBar = { FormulasDropdown(
+                items = formulas,
+                screenState = screenState
+            ) }
+        ) { innerPadding ->
+            Content( modifier = Modifier.padding(innerPadding.calculateTopPadding()))
         }
     }
 
-    override fun initView() {
-        with(binding) {
-            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, formulas)
-            adapter.setDropDownViewResource(androidx.constraintlayout.widget.R.layout.support_simple_spinner_dropdown_item)
-            spinnerFormulas.adapter = adapter
-            spinnerFormulas.onItemSelectedListener = getOnItemSelectedListener()
-        }
+    @Composable
+    fun FormulasDropdown(
+        modifier: Modifier = Modifier,
+        items: List<Formula>,
+        screenState: MainScreenState
+    ) {
+        BaseDropdownMenu(
+            modifier = modifier,
+            items = items,
+            onSelected = { formula -> screenState.formula = formula }
+        )
     }
 
-    override fun observeData() {
-        viewModel.currentFormulaFlow.onEach { formula ->
-            formula?.let { handleFormula(formula) }
-        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
-            .launchIn(viewLifecycleOwner.lifecycleScope)
+    @Composable
+    fun Content(modifier: Modifier = Modifier) {
 
-        viewModel.formulaResultFlow.onEach { result ->
-            result?.let {
-                when (result) {
-                    is MainViewModel.FormulaResult.Success -> binding.tvRes.text = result.getValue().toString()
-                    is MainViewModel.FormulaResult.Failure -> showToast(result.getException().message ?:
-                        getString(R.string.computations_fail))
-                }
-            }
-        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
-            .launchIn(viewLifecycleOwner.lifecycleScope)
-    }
-
-    private fun getOnItemSelectedListener() = object : OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
-            rollback()
-            (parent?.getItemAtPosition(pos) as Formula?)?.let { formula ->
-                viewModel.onIntent(MainScreenIntent.OnFormulaChosen(formula))
-            }
-        }
-
-        override fun onNothingSelected(parent: AdapterView<*>?) {}
     }
 
     private fun rollback() {
@@ -122,15 +112,6 @@ class MainFragment: BaseFragment() {
             chkBoxRepetitions.isChecked = false
 
             ivLatex.setImageDrawable(null)
-        }
-    }
-
-    private fun handleFormula(formula : Formula) {
-        when(formula) {
-            Formula.PLACEMENTS -> handlePlacements()
-            Formula.PERMUTATIONS -> handlePermutations()
-            Formula.COMBINATIONS -> handleCombinations()
-            Formula.URN_SCHEME -> handleUrnScheme()
         }
     }
 

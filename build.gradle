@@ -37,6 +37,9 @@ buildscript {
         composeBomVersion = "2024.08.00"
         composeBom = "androidx.compose:compose-bom:$composeBomVersion"
         composeMaterial = "androidx.compose.material3:material3"
+        composeIconsExtended = "androidx.compose.material:material-icons-extended"
+        composeUiTooling = "androidx.compose.ui:ui-tooling-preview"
+        composeUiToolingDebug = "androidx.compose.ui:ui-tooling"
         composeViewModelVersion = "2.8.4"
         composeViewModel = "androidx.lifecycle:lifecycle-viewmodel-compose:$composeViewModelVersion"
     }

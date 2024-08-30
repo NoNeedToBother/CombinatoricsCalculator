@@ -20,15 +20,6 @@ abstract class BaseFragment: Fragment() {
         return composeView()
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        observeData()
-    }
-
-    protected abstract fun initView()
-
-    protected abstract fun observeData()
-
     protected fun showToast(message: Int) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
