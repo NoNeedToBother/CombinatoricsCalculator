@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,8 +71,13 @@ class MainFragment: BaseFragment() {
         val screenState by remember {
             mutableStateOf(MainScreenState(
                 formula = mutableStateOf(Formula.PLACEMENTS),
-                allowRepetitions = false
+                allowRepetitions = mutableStateOf(false)
             ))
+        }
+
+        LaunchedEffect(screenState.allowRepetitions.value, screenState.n.value,
+            screenState.k.value) {
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
         }
 
         val formulas = listOf(
@@ -89,7 +96,11 @@ class MainFragment: BaseFragment() {
                 screenState = screenState
             )
             Content(screenState = screenState)
-            Button(onClick = { onGetResultClicked(screenState) }) {}
+            Button(onClick = { onGetResultClicked(screenState) },
+                modifier = Modifier.padding(4.dp)) {
+                Text(text = stringResource(id = R.string.get_res),
+                    style = MaterialTheme.typography.headlineMedium)
+            }
         }
     }
 
@@ -101,10 +112,11 @@ class MainFragment: BaseFragment() {
     }
 
     private fun handlePlacements(screenState: MainScreenState, onFail: () -> Unit = {}) {
-        screenState.n?.let { n ->
-            screenState.k?.let { k ->
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
                 viewModel.onIntent(MainScreenIntent.OnGetResult(
-                    PlacementsRequest(n = n, k = k, allowRepetitions = screenState.allowRepetitions)
+                    PlacementsRequest(n = n, k = k,
+                        allowRepetitions = screenState.allowRepetitions.value)
                 ))
             }
         }
@@ -128,14 +140,14 @@ class MainFragment: BaseFragment() {
         modifier: Modifier = Modifier,
         screenState: MainScreenState
     ) {
-        val onAllowRepetitionsChecked: (Boolean) -> Unit = { checked -> screenState.allowRepetitions = checked }
+        val onAllowRepetitionsChecked: (Boolean) -> Unit = { checked -> screenState.allowRepetitions.value = checked }
         val onInputN: (String) -> Unit = { n ->
-            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n = n.toInt()
-            else screenState.n = null
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
         }
         val onInputK: (String) -> Unit = { k ->
-            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k = k.toInt()
-            else screenState.k = null
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
         }
         when(screenState.formula.value) {
             Formula.PLACEMENTS -> PlacementsInputSection(
@@ -181,7 +193,7 @@ class MainFragment: BaseFragment() {
                 } else {
                     Latex(latex = stringResource(id = R.string.placements_latex_no_repetitions))
                 }
-                if (result is MainViewModel.FormulaResult.Success) {
+                if (result != null && result is MainViewModel.FormulaResult.Success) {
                     Text(text = (result as MainViewModel.FormulaResult.Success).getValue().toString())
                 }
             }
@@ -266,8 +278,10 @@ class MainFragment: BaseFragment() {
             visualTransformation = getInputSectionVisualTransformation(prefix),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = TextFieldDefaults.colors().copy(
-                focusedContainerColor = Color.Gray,
-                unfocusedLabelColor = Color.LightGray
+                focusedContainerColor = Color.LightGray,
+                unfocusedContainerColor = Color.LightGray,
+                cursorColor = Color.Gray,
+                focusedIndicatorColor = Color.Gray
             )
         )
     }

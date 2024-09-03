@@ -1,16 +1,17 @@
 package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.state
 
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
 
 data class MainScreenState(
     val formula: MutableState<Formula>,
-    var allowRepetitions: Boolean,
-    var n: Int? = null,
-    var k: Int? = null,
+    val allowRepetitions: MutableState<Boolean>,
+    val n: MutableState<Int?> = mutableStateOf(null),
+    val k: MutableState<Int?> = mutableStateOf(null),
 ) {
     fun cleatVariables() {
-        n = null
-        k = null
+        n.value = null
+        k.value = null
     }
 }

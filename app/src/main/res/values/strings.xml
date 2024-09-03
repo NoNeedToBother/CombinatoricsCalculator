@@ -8,10 +8,10 @@
     <string name="r_items">R items out of K</string>
 
     <string name="get_res">Get result</string>
-    <string name="var_n">n =</string>
-    <string name="var_k">k =</string>
-    <string name="var_r">r =</string>
-    <string name="var_m">m =</string>
+    <string name="var_n">n =&#160;</string>
+    <string name="var_k">k =&#160;</string>
+    <string name="var_r">r =&#160;</string>
+    <string name="var_m">m =&#160;</string>
 
     <string name="no_formula">Choose a formula</string>
     <string name="missing_variables">Input all variables</string>
