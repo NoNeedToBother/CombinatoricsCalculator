@@ -7,5 +7,10 @@ data class MainScreenState(
     val formula: MutableState<Formula>,
     var allowRepetitions: Boolean,
     var n: Int? = null,
-    var k: Int? = null
-)
+    var k: Int? = null,
+) {
+    fun cleatVariables() {
+        n = null
+        k = null
+    }
+}
