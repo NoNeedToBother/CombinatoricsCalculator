@@ -9,9 +9,13 @@ data class MainScreenState(
     val allowRepetitions: MutableState<Boolean>,
     val n: MutableState<Int?> = mutableStateOf(null),
     val k: MutableState<Int?> = mutableStateOf(null),
+    val m: MutableState<Int?> = mutableStateOf(null),
+    val r: MutableState<Int?> = mutableStateOf(null)
 ) {
     fun cleatVariables() {
         n.value = null
         k.value = null
+        m.value = null
+        r.value = null
     }
 }

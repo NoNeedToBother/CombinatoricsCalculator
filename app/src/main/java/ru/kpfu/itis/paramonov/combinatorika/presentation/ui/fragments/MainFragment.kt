@@ -1,5 +1,6 @@
 package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,8 +42,10 @@ import androidx.fragment.app.viewModels
 import dagger.hilt.android.AndroidEntryPoint
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.BaseDropdownMenu
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.state.MainScreenState
@@ -107,6 +110,8 @@ class MainFragment: BaseFragment() {
     private fun onGetResultClicked(screenState: MainScreenState) {
         when(screenState.formula.value) {
             Formula.PLACEMENTS -> handlePlacements(screenState)
+            Formula.COMBINATIONS -> handleCombinations(screenState)
+            Formula.URN_SCHEME -> handleUrnScheme(screenState)
             else -> {}
         }
     }
@@ -118,6 +123,31 @@ class MainFragment: BaseFragment() {
                     PlacementsRequest(n = n, k = k,
                         allowRepetitions = screenState.allowRepetitions.value)
                 ))
+            }
+        }
+    }
+
+    private fun handleCombinations(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
+                viewModel.onIntent(MainScreenIntent.OnGetResult(
+                    CombinationsRequest(n = n, k = k,
+                        allowRepetitions = screenState.allowRepetitions.value)
+                ))
+            }
+        }
+    }
+
+    private fun handleUrnScheme(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
+                screenState.m.value?.let { m ->
+                    viewModel.onIntent(MainScreenIntent.OnGetResult(
+                        UrnSchemeRequest(
+                            n = n, m = m, k = k, r = screenState.r.value
+                        )
+                    ))
+                }
             }
         }
     }
@@ -140,7 +170,20 @@ class MainFragment: BaseFragment() {
         modifier: Modifier = Modifier,
         screenState: MainScreenState
     ) {
-        val onAllowRepetitionsChecked: (Boolean) -> Unit = { checked -> screenState.allowRepetitions.value = checked }
+
+        when(screenState.formula.value) {
+            Formula.PLACEMENTS -> PlacementsInputSection(modifier, screenState)
+            Formula.PERMUTATIONS -> PermutationsInputSection(modifier, screenState)
+            Formula.COMBINATIONS -> CombinationsInputSection(modifier, screenState)
+            Formula.URN_SCHEME -> UrnSchemeInputSection(modifier, screenState)
+        }
+    }
+
+    @Composable
+    fun PlacementsInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
         val onInputN: (String) -> Unit = { n ->
             if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
             else screenState.n.value = null
@@ -149,54 +192,26 @@ class MainFragment: BaseFragment() {
             if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
             else screenState.k.value = null
         }
-        when(screenState.formula.value) {
-            Formula.PLACEMENTS -> PlacementsInputSection(
-                modifier, onAllowRepetitionsChecked = onAllowRepetitionsChecked,
-                onInputN = onInputN, onInputK = onInputK
-            )
-            Formula.PERMUTATIONS -> PermutationsInputSection(
-                modifier, onAllowRepetitionsChecked = onAllowRepetitionsChecked
-            )
-            Formula.COMBINATIONS -> CombinationsInputSection(modifier)
-            Formula.URN_SCHEME -> UrnSchemeInputSection(modifier)
+
+        LaunchedEffect(Unit) {
+            screenState.cleatVariables()
         }
-    }
-    
-    @Composable
-    fun PlacementsInputSection(
-        modifier: Modifier = Modifier,
-        onAllowRepetitionsChecked: (checked: Boolean) -> Unit = {},
-        onInputN: (n: String) -> Unit = {},
-        onInputK: (k: String) -> Unit = {}
-    ) {
-        var allowRepetitions by remember {
-            mutableStateOf(false)
-        }
-        val result by viewModel.formulaResultFlow.collectAsState()
+
         Column(
             modifier = modifier.padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
             ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = stringResource(id = R.string.allow_repetitions))
-                Checkbox(checked = allowRepetitions, onCheckedChange = { checked ->
-                    allowRepetitions = checked
-                    onAllowRepetitionsChecked(checked)
-                })
-            }
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (allowRepetitions) {
-                    Latex(latex = stringResource(id = R.string.placements_latex_repetitions))
-                } else {
-                    Latex(latex = stringResource(id = R.string.placements_latex_no_repetitions))
-                }
-                if (result != null && result is MainViewModel.FormulaResult.Success) {
-                    Text(text = (result as MainViewModel.FormulaResult.Success).getValue().toString())
-                }
-            }
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.placements_latex_repetitions,
+                latexNotSatisfy = R.string.placements_latex_no_repetitions)
 
             InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
             InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
@@ -206,7 +221,7 @@ class MainFragment: BaseFragment() {
     @Composable
     fun PermutationsInputSection(
         modifier: Modifier = Modifier,
-        onAllowRepetitionsChecked: (checked: Boolean) -> Unit = {}
+        screenState: MainScreenState
     ) {
 
     }
@@ -214,13 +229,88 @@ class MainFragment: BaseFragment() {
     @Composable
     fun CombinationsInputSection(
         modifier: Modifier = Modifier,
-        onAllowRepetitionsChecked: (checked: Boolean) -> Unit = {}
+        screenState: MainScreenState
+    ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputK: (String) -> Unit = { k ->
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
+        }
+
+        LaunchedEffect(Unit) {
+            screenState.cleatVariables()
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.combinations_latex_repetitions,
+                latexNotSatisfy = R.string.combinations_latex_no_repetitions)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
+        }
+
+    }
+
+    @Composable
+    fun UrnSchemeInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
     ) {
 
     }
 
     @Composable
-    fun UrnSchemeInputSection(modifier: Modifier = Modifier) {
+    fun AllowRepetitions(
+        modifier: Modifier = Modifier,
+        checked: Boolean,
+        onChecked: (Boolean) -> Unit = {}
+    ) {
+        Row(modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(id = R.string.allow_repetitions))
+            Checkbox(checked = checked,
+                onCheckedChange = onChecked
+            )
+        }
+    }
+
+    @Composable
+    fun ResultAndLatex(
+        modifier: Modifier = Modifier,
+        latexCondition: Boolean = true,
+        @StringRes latexSatisfy: Int,
+        @StringRes latexNotSatisfy: Int? = null
+    ) {
+        val result by viewModel.formulaResultFlow.collectAsState()
+
+        Row(modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically) {
+            if (latexCondition) {
+                Latex(latex = stringResource(id = latexSatisfy))
+            } else {
+                latexNotSatisfy?.let {
+                    Latex(latex = stringResource(id = latexNotSatisfy))
+                }
+            }
+            if (result != null && result is MainViewModel.FormulaResult.Success) {
+                Text(text = (result as MainViewModel.FormulaResult.Success).getValue().toString())
+            }
+        }
 
     }
     
