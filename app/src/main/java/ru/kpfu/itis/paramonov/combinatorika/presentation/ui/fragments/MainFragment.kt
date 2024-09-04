@@ -1,274 +1,505 @@
 package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
-import android.annotation.SuppressLint
-import android.view.View
-import android.widget.AdapterView
-import android.widget.AdapterView.OnItemSelectedListener
-import android.widget.ArrayAdapter
-import android.widget.CheckBox
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.core.text.isDigitsOnly
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.flowWithLifecycle
-import androidx.lifecycle.lifecycleScope
-import by.kirich1409.viewbindingdelegate.viewBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import ru.kpfu.itis.paramonov.combinatorika.R
-import ru.kpfu.itis.paramonov.combinatorika.databinding.FragmentMainBinding
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.BaseDropdownMenu
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.InputSection
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.Latex
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.state.MainScreenState
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.theme.CombinatoricsTheme
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewModel
-import ru.noties.jlatexmath.JLatexMathDrawable
 
 @AndroidEntryPoint
-class MainFragment: BaseFragment(R.layout.fragment_main) {
-
-    private val formulas = arrayOf(
-        Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
-    )
-
-    private val binding: FragmentMainBinding by viewBinding(FragmentMainBinding::bind)
+class MainFragment: BaseFragment() {
 
     private val viewModel: MainViewModel by viewModels()
 
-    override fun initView() {
-        with(binding) {
-            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, formulas)
-            adapter.setDropDownViewResource(androidx.constraintlayout.widget.R.layout.support_simple_spinner_dropdown_item)
-            spinnerFormulas.adapter = adapter
-            spinnerFormulas.onItemSelectedListener = getOnItemSelectedListener()
-        }
-    }
-
-    override fun observeData() {
-        viewModel.currentFormulaFlow.onEach { formula ->
-            formula?.let { handleFormula(formula) }
-        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
-            .launchIn(viewLifecycleOwner.lifecycleScope)
-
-        viewModel.formulaResultFlow.onEach { result ->
-            result?.let {
-                when (result) {
-                    is MainViewModel.FormulaResult.Success -> binding.tvRes.text = result.getValue().toString()
-                    is MainViewModel.FormulaResult.Failure -> showToast(result.getException().message ?:
-                        getString(R.string.computations_fail))
+    override fun composeView(): ComposeView {
+        return ComposeView(requireContext()).apply {
+            setContent {
+                CombinatoricsTheme {
+                    MainScreen()
                 }
             }
-        }.flowWithLifecycle(viewLifecycleOwner.lifecycle)
-            .launchIn(viewLifecycleOwner.lifecycleScope)
+        }
     }
 
-    private fun getOnItemSelectedListener() = object : OnItemSelectedListener {
-        override fun onItemSelected(parent: AdapterView<*>?, view: View?, pos: Int, id: Long) {
-            rollback()
-            (parent?.getItemAtPosition(pos) as Formula?)?.let { formula ->
-                viewModel.onIntent(MainScreenIntent.OnFormulaChosen(formula))
+    @Composable
+    @Preview(showBackground = true, heightDp = 600, widthDp = 320)
+    fun MainScreen(modifier: Modifier = Modifier) {
+        val screenState by remember {
+            mutableStateOf(MainScreenState(
+                formula = mutableStateOf(Formula.PLACEMENTS),
+                allowRepetitions = mutableStateOf(false),
+                urnSchemeRItems = mutableStateOf(false)
+            ))
+        }
+
+        LaunchedEffect(screenState.allowRepetitions.value, screenState.n.value,
+            screenState.k.value, screenState.m.value, screenState.r.value,
+            screenState.urnSchemeRItems.value) {
+
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        val result by viewModel.formulaResultFlow.collectAsState()
+
+        LaunchedEffect(key1 = result) {
+            if (result != null && result is MainViewModel.FormulaResult.Failure) {
+                showToast(
+                    (result as MainViewModel.FormulaResult.Failure).getException().message
+                        ?: getString(R.string.default_err_message)
+                )
             }
         }
 
-        override fun onNothingSelected(parent: AdapterView<*>?) {}
-    }
+        val formulas = listOf(
+            Formula.PLACEMENTS, Formula.PERMUTATIONS, Formula.COMBINATIONS, Formula.URN_SCHEME
+        )
 
-    private fun rollback() {
-        with(binding) {
-            varN.visibility = View.GONE
-            etN.text.clear()
-            varK.visibility = View.GONE
-            etK.text.clear()
-            varM.visibility = View.GONE
-            etM.text.clear()
-            varR.visibility = View.GONE
-            etR.text.clear()
-            varN1Nk.visibility = View.GONE
-            etN1ToNk.text.clear()
-
-            tvRes.setText(R.string.empty_str)
-
-            radioGrpUrn.visibility = View.GONE
-            radioBtnAll.isChecked = false
-            radioBtnR.isChecked = false
-
-            chkBoxRepetitions.visibility = View.GONE
-            chkBoxRepetitions.setOnClickListener {  }
-            chkBoxRepetitions.isChecked = false
-
-            ivLatex.setImageDrawable(null)
-        }
-    }
-
-    private fun handleFormula(formula : Formula) {
-        when(formula) {
-            Formula.PLACEMENTS -> handlePlacements()
-            Formula.PERMUTATIONS -> handlePermutations()
-            Formula.COMBINATIONS -> handleCombinations()
-            Formula.URN_SCHEME -> handleUrnScheme()
-        }
-    }
-
-    @SuppressLint("SetTextI18n")
-    private fun handlePlacements() {
-        with(binding) {
-            varN.visibility = View.VISIBLE
-            varK.visibility = View.VISIBLE
-            chkBoxRepetitions.visibility = View.VISIBLE
-
-            val latexNoRepetitions = getString(R.string.placements_latex_no_repetitions)
-            val latexRepetitions = getString(R.string.placements_latex_repetitions)
-
-            drawLatex(latexNoRepetitions)
-
-            chkBoxRepetitions.setOnClickListener {
-                tvRes.text = ""
-                it as CheckBox
-                if (it.isChecked) drawLatex(latexRepetitions)
-                else drawLatex(latexNoRepetitions)
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            FormulasDropdown(
+                items = formulas,
+                screenState = screenState
+            )
+            Content(screenState = screenState)
+            Button(onClick = { onGetResultClicked(screenState) },
+                modifier = Modifier.padding(4.dp)) {
+                Text(text = stringResource(id = R.string.get_res),
+                    style = MaterialTheme.typography.headlineMedium)
             }
+        }
+    }
 
-            btnRes.setOnClickListener {
-                val n = etN.text.toString()
-                val k = etK.text.toString()
+    private fun onGetResultClicked(screenState: MainScreenState) {
+        when(screenState.formula.value) {
+            Formula.PLACEMENTS -> handlePlacements(screenState)
+            Formula.PERMUTATIONS -> handlePermutations(screenState)
+            Formula.COMBINATIONS -> handleCombinations(screenState)
+            Formula.URN_SCHEME -> handleUrnScheme(screenState)
+        }
+    }
 
-                if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else {
+    private fun handlePlacements(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
+                viewModel.onIntent(MainScreenIntent.OnGetResult(
+                    PlacementsRequest(n = n, k = k,
+                        allowRepetitions = screenState.allowRepetitions.value)
+                ))
+            }
+        }
+    }
+
+    private fun handlePermutations(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            viewModel.onIntent(MainScreenIntent.OnGetResult(
+                PermutationsRequest(n = n, nVars = screenState.nVars.value,
+                    allowRepetitions = screenState.allowRepetitions.value)
+            ))
+        }
+    }
+
+    private fun handleCombinations(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
+                viewModel.onIntent(MainScreenIntent.OnGetResult(
+                    CombinationsRequest(n = n, k = k,
+                        allowRepetitions = screenState.allowRepetitions.value)
+                ))
+            }
+        }
+    }
+
+    private fun handleUrnScheme(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            screenState.k.value?.let { k ->
+                screenState.m.value?.let { m ->
                     viewModel.onIntent(MainScreenIntent.OnGetResult(
-                        PlacementsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
+                        UrnSchemeRequest(
+                            n = n, m = m, k = k, r = screenState.r.value
+                        )
                     ))
                 }
             }
         }
     }
 
-    @SuppressLint("SetTextI18n")
-    private fun handlePermutations() {
-        with(binding) {
-            varN.visibility = View.VISIBLE
-            chkBoxRepetitions.visibility = View.VISIBLE
+    @Composable
+    fun FormulasDropdown(
+        modifier: Modifier = Modifier,
+        items: List<Formula>,
+        screenState: MainScreenState
+    ) {
+        BaseDropdownMenu(
+            modifier = modifier,
+            items = items,
+            onSelected = { formula -> screenState.formula.value = formula }
+        )
+    }
 
-            val latexNoRepetitions = getString(R.string.permutations_latex_no_repetitions)
-            val latexRepetitions = getString(R.string.permutations_latex_repetitions)
-            drawLatex(latexNoRepetitions)
+    @Composable
+    fun Content(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        when(screenState.formula.value) {
+            Formula.PLACEMENTS -> PlacementsInputSection(modifier, screenState)
+            Formula.PERMUTATIONS -> PermutationsInputSection(modifier, screenState)
+            Formula.COMBINATIONS -> CombinationsInputSection(modifier, screenState)
+            Formula.URN_SCHEME -> UrnSchemeInputSection(modifier, screenState)
+        }
+    }
 
-            chkBoxRepetitions.setOnClickListener {
-                tvRes.text = ""
-                it as CheckBox
-                if (it.isChecked) {
-                    varN1Nk.visibility = View.VISIBLE
-                    drawLatex(latexRepetitions)
+    @Composable
+    fun PlacementsInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputK: (String) -> Unit = { k ->
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
+        }
+
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.placements_latex_repetitions,
+                latexNotSatisfy = R.string.placements_latex_no_repetitions)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
+        }
+    }
+
+    @Composable
+    fun PermutationsInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputNVars: (String) -> Unit = { nVars ->
+            if (nVars.isNotBlank()) {
+                val temp = mutableListOf<Int>()
+                var valid = true
+                nVars.split(",").forEach { n ->
+                    if (n.isNotBlank() && n.isDigitsOnly()) temp.add(n.toInt())
+                    else if (n.isNotBlank()) {
+                        showToast(R.string.invalid_arguments)
+                        valid = false
+                    }
                 }
-                else {
-                    drawLatex(latexNoRepetitions)
-                    varN1Nk.visibility = View.GONE
+                if (valid) {
+                    screenState.nVars.value = temp
                 }
+            } else screenState.nVars.value = null
+        }
+
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.permutations_latex_repetitions,
+                latexNotSatisfy = R.string.permutations_latex_no_repetitions)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            if (screenState.allowRepetitions.value)
+                InputSectionNVars(modifier = Modifier.padding(4.dp), onInput = onInputNVars)
+        }
+    }
+
+    @Composable
+    fun CombinationsInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputK: (String) -> Unit = { k ->
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
+        }
+
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.combinations_latex_repetitions,
+                latexNotSatisfy = R.string.combinations_latex_no_repetitions)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
+        }
+    }
+
+    @Composable
+    fun UrnSchemeInputSection(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputK: (String) -> Unit = { k ->
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
+        }
+        val onInputM: (String) -> Unit = { m ->
+            if (m.isNotBlank() && m.isDigitsOnly()) screenState.m.value = m.toInt()
+            else screenState.m.value = null
+        }
+        val onInputR: (String) -> Unit = { r ->
+            if (r.isNotBlank() && r.isDigitsOnly()) screenState.r.value = r.toInt()
+            else screenState.r.value = null
+        }
+
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            UrnSchemeRadioGroup(screenState = screenState)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.urnSchemeRItems.value,
+                latexSatisfy = R.string.urn_scheme_latex_r,
+                latexNotSatisfy = R.string.urn_scheme_latex_all)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
+            InputSectionM(modifier = Modifier.padding(4.dp), onInput = onInputM)
+            if (screenState.urnSchemeRItems.value)
+                InputSectionR(modifier = Modifier.padding(4.dp), onInput = onInputR)
+        }
+    }
+
+    @Composable
+    fun UrnSchemeRadioGroup(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier.padding(8.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(
+                    selected = !screenState.urnSchemeRItems.value,
+                    onClick = { screenState.urnSchemeRItems.value = false }
+                )
+                Text(
+                    text = stringResource(id = R.string.all_items),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
-
-            btnRes.setOnClickListener {
-                val n = etN.text.toString()
-                val nVars =
-                    if (chkBoxRepetitions.isChecked)
-                        etN1ToNk.text.toString().split(",").map { str -> str.toInt() }
-                    else null
-
-                if (n.isEmpty() || (chkBoxRepetitions.isChecked && nVars?.isEmpty() == true)) showToast(R.string.missing_variables)
-                else {
-                    viewModel.onIntent(MainScreenIntent.OnGetResult(
-                        PermutationsRequest(n.toInt(), nVars, chkBoxRepetitions.isChecked)
-                    ))
-                }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(
+                    selected = screenState.urnSchemeRItems.value,
+                    onClick = { screenState.urnSchemeRItems.value = true }
+                )
+                Text(
+                    text = stringResource(id = R.string.r_items),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
         }
     }
 
-    @SuppressLint("SetTextI18n")
-    private fun handleCombinations() {
-        with(binding) {
-            varN.visibility = View.VISIBLE
-            varK.visibility = View.VISIBLE
-            chkBoxRepetitions.visibility = View.VISIBLE
-
-            val latexRepetitions = getString(R.string.combinations_latex_repetitions)
-            val latexNoRepetitions = getString(R.string.combinations_latex_no_repetitions)
-
-            drawLatex(latexNoRepetitions)
-
-            chkBoxRepetitions.setOnClickListener {
-                tvRes.text = ""
-                it as CheckBox
-                if (it.isChecked) drawLatex(latexRepetitions)
-                else drawLatex(latexNoRepetitions)
-            }
-
-            btnRes.setOnClickListener {
-                val n = etN.text.toString()
-                val k = etK.text.toString()
-
-                if (n.isEmpty() || k.isEmpty()) showToast(R.string.missing_variables)
-                else {
-                    viewModel.onIntent(MainScreenIntent.OnGetResult(
-                        CombinationsRequest(n.toInt(), k.toInt(), chkBoxRepetitions.isChecked)
-                    ))
-                }
-            }
+    @Composable
+    fun AllowRepetitions(
+        modifier: Modifier = Modifier,
+        checked: Boolean,
+        onChecked: (Boolean) -> Unit = {}
+    ) {
+        Row(modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(id = R.string.allow_repetitions))
+            Checkbox(checked = checked,
+                onCheckedChange = onChecked
+            )
         }
     }
 
-    private fun handleUrnScheme() {
-        with(binding) {
-            radioGrpUrn.visibility = View.VISIBLE
-            varN.visibility = View.VISIBLE
-            varM.visibility = View.VISIBLE
-            varK.visibility = View.VISIBLE
+    @Composable
+    fun ResultAndLatex(
+        modifier: Modifier = Modifier,
+        latexCondition: Boolean = true,
+        @StringRes latexSatisfy: Int,
+        @StringRes latexNotSatisfy: Int? = null
+    ) {
+        val result by viewModel.formulaResultFlow.collectAsState()
 
-            val latexAll = getString(R.string.urn_scheme_latex_all)
-            val latexR = getString(R.string.urn_scheme_latex_r)
-
-            radioBtnR.setOnClickListener {
-                varR.visibility = View.VISIBLE
-                tvRes.setText(R.string.empty_str)
-                drawLatex(latexR)
-            }
-
-            radioBtnAll.setOnClickListener {
-                varR.visibility = View.GONE
-                tvRes.setText(R.string.empty_str)
-                drawLatex(latexAll)
-            }
-
-            btnRes.setOnClickListener {
-                if (!radioBtnR.isChecked && !radioBtnAll.isChecked) {
-                    showToast(R.string.option_not_chosen)
-                    return@setOnClickListener
+        Row(modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically) {
+            if (latexCondition) {
+                Latex(latex = stringResource(id = latexSatisfy))
+            } else {
+                latexNotSatisfy?.let {
+                    Latex(latex = stringResource(id = latexNotSatisfy))
                 }
-
-                val n = etN.text.toString()
-                val m = etM.text.toString()
-                val k = etK.text.toString()
-                val r = if (radioBtnR.isChecked) etR.text.toString()
-                    else null
-
-                if (n.isEmpty() || m.isEmpty() || k.isEmpty() ||
-                    (radioBtnR.isChecked && r?.isEmpty() == true))
-                    showToast(R.string.missing_variables)
-                else {
-                    viewModel.onIntent(MainScreenIntent.OnGetResult(
-                        UrnSchemeRequest(n.toInt(), m.toInt(), k.toInt(), r?.toInt())
-                    ))
-                }
+            }
+            if (result != null && result is MainViewModel.FormulaResult.Success) {
+                Text(text = (result as MainViewModel.FormulaResult.Success).getValue().toString())
             }
         }
+
+    }
+    
+    @Composable
+    fun InputSectionN(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
+        InputSection(
+            modifier = modifier,
+            prefix = stringResource(id = R.string.var_n),
+            onInput = onInput
+        )
     }
 
-    private fun drawLatex(latex : String) {
-        val drawable = JLatexMathDrawable.builder(latex)
-            .textSize(40f)
-            .align(JLatexMathDrawable.ALIGN_LEFT)
-            .build()
+    @Composable
+    fun InputSectionK(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
+        InputSection(
+            modifier = modifier,
+            prefix = stringResource(id = R.string.var_k),
+            onInput = onInput
+        )
+    }
 
-        binding.ivLatex.setImageDrawable(drawable)
+    @Composable
+    fun InputSectionM(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
+        InputSection(
+            modifier = modifier,
+            prefix = stringResource(id = R.string.var_m),
+            onInput = onInput
+        )
+    }
+
+    @Composable
+    fun InputSectionR(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
+        InputSection(
+            modifier = modifier,
+            prefix = stringResource(id = R.string.var_r),
+            onInput = onInput
+        )
+    }
+
+    @Composable
+    fun InputSectionNVars(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
+        var text by remember { mutableStateOf("") }
+
+        TextField(
+            value = text, onValueChange = { value ->
+                text = value
+                onInput(value)
+            },
+            modifier = modifier,
+            prefix = { Latex(latex = stringResource(id = R.string.n_vars_latex)) },
+            colors = TextFieldDefaults.colors().copy(
+                focusedContainerColor = Color.LightGray,
+                unfocusedContainerColor = Color.LightGray,
+                cursorColor = Color.Gray,
+                focusedIndicatorColor = Color.Gray
+            )
+        )
     }
 
     companion object {

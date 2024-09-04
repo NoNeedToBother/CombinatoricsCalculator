@@ -37,4 +37,8 @@
 
     <string name="placements_latex_no_repetitions">\\mathnormal{A}_{n}^{k}: \\frac{n!}{(n - k)!} = </string>
     <string name="placements_latex_repetitions">\\bar{\\mathnormal{A}}_{n}^{k}: n^{k} = </string>
+
+    <string name="n_vars_latex">n_{1},…n_{k} =</string>
+
+    <string name="default_err_message">Something went wrong…</string>
 </resources>

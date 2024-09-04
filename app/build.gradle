@@ -35,6 +35,11 @@ android {
 
     buildFeatures {
         viewBinding = true
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.7"
     }
 }
 
@@ -53,6 +58,13 @@ dependencies {
 
     implementation(daggerHilt)
     ksp(daggerHiltCompiler)
+
+    implementation(platform(composeBom))
+    implementation(composeMaterial)
+    implementation(composeUiTooling)
+    implementation(composeIconsExtended)
+    debugImplementation(composeUiToolingDebug)
+    implementation(composeViewModel)
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
