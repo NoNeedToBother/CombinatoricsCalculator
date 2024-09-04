@@ -10,7 +10,6 @@ import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseViewModel
 import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.ComputationException
 import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.InvalidVariablesException
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
-import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
@@ -31,6 +30,7 @@ class MainViewModel @Inject constructor(
     override fun onIntent(intent: MainScreenIntent) {
         when (intent) {
             is MainScreenIntent.OnGetResult -> onGetResultIntent(intent)
+            is MainScreenIntent.OnClearResult -> _formulaResultFlow.value = null
         }
     }
 
@@ -66,6 +66,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -84,6 +85,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -99,6 +101,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -115,6 +118,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
