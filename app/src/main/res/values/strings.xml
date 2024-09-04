@@ -8,10 +8,10 @@
     <string name="r_items">R items out of K</string>
 
     <string name="get_res">Get result</string>
-    <string name="var_n">n =&#160;</string>
-    <string name="var_k">k =&#160;</string>
-    <string name="var_r">r =&#160;</string>
-    <string name="var_m">m =&#160;</string>
+    <string name="var_n">n =</string>
+    <string name="var_k">k =</string>
+    <string name="var_r">r =</string>
+    <string name="var_m">m =</string>
 
     <string name="no_formula">Choose a formula</string>
     <string name="missing_variables">Input all variables</string>
@@ -37,4 +37,8 @@
 
     <string name="placements_latex_no_repetitions">\\mathnormal{A}_{n}^{k}: \\frac{n!}{(n - k)!} = </string>
     <string name="placements_latex_repetitions">\\bar{\\mathnormal{A}}_{n}^{k}: n^{k} = </string>
+
+    <string name="n_vars_latex">n_{1},…n_{k} =</string>
+
+    <string name="default_err_message">Something went wrong…</string>
 </resources>

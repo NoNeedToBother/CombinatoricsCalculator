@@ -1,7 +1,6 @@
 package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.fragments
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,10 +8,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -26,17 +26,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.text.isDigitsOnly
 import androidx.fragment.app.viewModels
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,14 +37,16 @@ import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseFragment
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.CombinationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.Formula
+import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PermutationsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.PlacementsRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.model.UrnSchemeRequest
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.BaseDropdownMenu
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.InputSection
+import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.components.Latex
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.intents.MainScreenIntent
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.state.MainScreenState
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.theme.CombinatoricsTheme
 import ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel.MainViewModel
-import ru.noties.jlatexmath.JLatexMathDrawable
 
 @AndroidEntryPoint
 class MainFragment: BaseFragment() {
@@ -74,13 +69,27 @@ class MainFragment: BaseFragment() {
         val screenState by remember {
             mutableStateOf(MainScreenState(
                 formula = mutableStateOf(Formula.PLACEMENTS),
-                allowRepetitions = mutableStateOf(false)
+                allowRepetitions = mutableStateOf(false),
+                urnSchemeRItems = mutableStateOf(false)
             ))
         }
 
         LaunchedEffect(screenState.allowRepetitions.value, screenState.n.value,
-            screenState.k.value) {
+            screenState.k.value, screenState.m.value, screenState.r.value,
+            screenState.urnSchemeRItems.value) {
+
             viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        val result by viewModel.formulaResultFlow.collectAsState()
+
+        LaunchedEffect(key1 = result) {
+            if (result != null && result is MainViewModel.FormulaResult.Failure) {
+                showToast(
+                    (result as MainViewModel.FormulaResult.Failure).getException().message
+                        ?: getString(R.string.default_err_message)
+                )
+            }
         }
 
         val formulas = listOf(
@@ -110,13 +119,13 @@ class MainFragment: BaseFragment() {
     private fun onGetResultClicked(screenState: MainScreenState) {
         when(screenState.formula.value) {
             Formula.PLACEMENTS -> handlePlacements(screenState)
+            Formula.PERMUTATIONS -> handlePermutations(screenState)
             Formula.COMBINATIONS -> handleCombinations(screenState)
             Formula.URN_SCHEME -> handleUrnScheme(screenState)
-            else -> {}
         }
     }
 
-    private fun handlePlacements(screenState: MainScreenState, onFail: () -> Unit = {}) {
+    private fun handlePlacements(screenState: MainScreenState) {
         screenState.n.value?.let { n ->
             screenState.k.value?.let { k ->
                 viewModel.onIntent(MainScreenIntent.OnGetResult(
@@ -124,6 +133,15 @@ class MainFragment: BaseFragment() {
                         allowRepetitions = screenState.allowRepetitions.value)
                 ))
             }
+        }
+    }
+
+    private fun handlePermutations(screenState: MainScreenState) {
+        screenState.n.value?.let { n ->
+            viewModel.onIntent(MainScreenIntent.OnGetResult(
+                PermutationsRequest(n = n, nVars = screenState.nVars.value,
+                    allowRepetitions = screenState.allowRepetitions.value)
+            ))
         }
     }
 
@@ -170,7 +188,6 @@ class MainFragment: BaseFragment() {
         modifier: Modifier = Modifier,
         screenState: MainScreenState
     ) {
-
         when(screenState.formula.value) {
             Formula.PLACEMENTS -> PlacementsInputSection(modifier, screenState)
             Formula.PERMUTATIONS -> PermutationsInputSection(modifier, screenState)
@@ -194,7 +211,7 @@ class MainFragment: BaseFragment() {
         }
 
         LaunchedEffect(Unit) {
-            screenState.cleatVariables()
+            screenState.clearVariables()
         }
 
         Column(
@@ -223,7 +240,51 @@ class MainFragment: BaseFragment() {
         modifier: Modifier = Modifier,
         screenState: MainScreenState
     ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputNVars: (String) -> Unit = { nVars ->
+            if (nVars.isNotBlank()) {
+                val temp = mutableListOf<Int>()
+                var valid = true
+                nVars.split(",").forEach { n ->
+                    if (n.isNotBlank() && n.isDigitsOnly()) temp.add(n.toInt())
+                    else if (n.isNotBlank()) {
+                        showToast(R.string.invalid_arguments)
+                        valid = false
+                    }
+                }
+                if (valid) {
+                    screenState.nVars.value = temp
+                }
+            } else screenState.nVars.value = null
+        }
 
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AllowRepetitions(
+                checked = screenState.allowRepetitions.value,
+                onChecked = { checked -> screenState.allowRepetitions.value = checked }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.allowRepetitions.value,
+                latexSatisfy = R.string.permutations_latex_repetitions,
+                latexNotSatisfy = R.string.permutations_latex_no_repetitions)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            if (screenState.allowRepetitions.value)
+                InputSectionNVars(modifier = Modifier.padding(4.dp), onInput = onInputNVars)
+        }
     }
 
     @Composable
@@ -241,7 +302,7 @@ class MainFragment: BaseFragment() {
         }
 
         LaunchedEffect(Unit) {
-            screenState.cleatVariables()
+            screenState.clearVariables()
             viewModel.onIntent(MainScreenIntent.OnClearResult)
         }
 
@@ -263,7 +324,6 @@ class MainFragment: BaseFragment() {
             InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
             InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
         }
-
     }
 
     @Composable
@@ -271,7 +331,79 @@ class MainFragment: BaseFragment() {
         modifier: Modifier = Modifier,
         screenState: MainScreenState
     ) {
+        val onInputN: (String) -> Unit = { n ->
+            if (n.isNotBlank() && n.isDigitsOnly()) screenState.n.value = n.toInt()
+            else screenState.n.value = null
+        }
+        val onInputK: (String) -> Unit = { k ->
+            if (k.isNotBlank() && k.isDigitsOnly()) screenState.k.value = k.toInt()
+            else screenState.k.value = null
+        }
+        val onInputM: (String) -> Unit = { m ->
+            if (m.isNotBlank() && m.isDigitsOnly()) screenState.m.value = m.toInt()
+            else screenState.m.value = null
+        }
+        val onInputR: (String) -> Unit = { r ->
+            if (r.isNotBlank() && r.isDigitsOnly()) screenState.r.value = r.toInt()
+            else screenState.r.value = null
+        }
 
+        LaunchedEffect(Unit) {
+            screenState.clearVariables()
+            viewModel.onIntent(MainScreenIntent.OnClearResult)
+        }
+
+        Column(
+            modifier = modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            UrnSchemeRadioGroup(screenState = screenState)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ResultAndLatex(
+                latexCondition = screenState.urnSchemeRItems.value,
+                latexSatisfy = R.string.urn_scheme_latex_r,
+                latexNotSatisfy = R.string.urn_scheme_latex_all)
+
+            InputSectionN(modifier = Modifier.padding(4.dp), onInput = onInputN)
+            InputSectionK(modifier = Modifier.padding(4.dp), onInput = onInputK)
+            InputSectionM(modifier = Modifier.padding(4.dp), onInput = onInputM)
+            if (screenState.urnSchemeRItems.value)
+                InputSectionR(modifier = Modifier.padding(4.dp), onInput = onInputR)
+        }
+    }
+
+    @Composable
+    fun UrnSchemeRadioGroup(
+        modifier: Modifier = Modifier,
+        screenState: MainScreenState
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier.padding(8.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(
+                    selected = !screenState.urnSchemeRItems.value,
+                    onClick = { screenState.urnSchemeRItems.value = false }
+                )
+                Text(
+                    text = stringResource(id = R.string.all_items),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                RadioButton(
+                    selected = screenState.urnSchemeRItems.value,
+                    onClick = { screenState.urnSchemeRItems.value = true }
+                )
+                Text(
+                    text = stringResource(id = R.string.r_items),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
     }
 
     @Composable
@@ -351,22 +483,16 @@ class MainFragment: BaseFragment() {
     }
 
     @Composable
-    fun InputSection(
-        modifier: Modifier = Modifier,
-        prefix: String,
-        onInput: (String) -> Unit = {}
-    ) {
+    fun InputSectionNVars(modifier: Modifier = Modifier, onInput: (String) -> Unit = {}) {
         var text by remember { mutableStateOf("") }
 
         TextField(
-            modifier = modifier,
-            value = text,
-            onValueChange = { txt: String ->
-                text = txt
-                onInput(txt)
+            value = text, onValueChange = { value ->
+                text = value
+                onInput(value)
             },
-            visualTransformation = getInputSectionVisualTransformation(prefix),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = modifier,
+            prefix = { Latex(latex = stringResource(id = R.string.n_vars_latex)) },
             colors = TextFieldDefaults.colors().copy(
                 focusedContainerColor = Color.LightGray,
                 unfocusedContainerColor = Color.LightGray,
@@ -375,42 +501,6 @@ class MainFragment: BaseFragment() {
             )
         )
     }
-
-    private fun getInputSectionVisualTransformation(prefix: String): VisualTransformation {
-        return object : VisualTransformation {
-            override fun filter(text: AnnotatedString): TransformedText {
-                val annotatedString = AnnotatedString.Builder().run {
-                    append(prefix)
-                    append(text)
-                    toAnnotatedString()
-                }
-
-                val prefixOffsetTranslator = object : OffsetMapping {
-                    override fun originalToTransformed(offset: Int): Int {
-                        return offset + prefix.length
-                    }
-
-                    override fun transformedToOriginal(offset: Int): Int {
-                        return if (offset >= prefix.length) offset - prefix.length else 0
-                    }
-                }
-
-                return TransformedText(annotatedString, prefixOffsetTranslator)
-            }
-        }
-    }
-
-    @Composable
-    fun Latex(latex: String) {
-        Image(bitmap = JLatexMathDrawable
-            .builder(latex)
-            .textSize(40f)
-            .align(JLatexMathDrawable.ALIGN_LEFT)
-            .build()
-            .toBitmap()
-            .asImageBitmap(), contentDescription = null)
-    }
-
 
     companion object {
         const val START_FRAGMENT_TAG = "MAIN_FRAGMENT"

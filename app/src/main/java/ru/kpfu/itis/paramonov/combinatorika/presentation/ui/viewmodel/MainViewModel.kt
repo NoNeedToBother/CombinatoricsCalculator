@@ -66,6 +66,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -84,6 +85,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -99,6 +101,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
@@ -115,6 +118,7 @@ class MainViewModel @Inject constructor(
                     _formulaResultFlow.value = FormulaResult.Success(result)
                 } catch (ex: Throwable) {
                     _formulaResultFlow.value = FormulaResult.Failure(getExceptionFromComputations(ex))
+                    _formulaResultFlow.value = null
                 }
             }
         }
