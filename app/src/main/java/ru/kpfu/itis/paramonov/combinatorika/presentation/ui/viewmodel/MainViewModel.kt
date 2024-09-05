@@ -2,9 +2,11 @@ package ru.kpfu.itis.paramonov.combinatorika.presentation.ui.viewmodel
 
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.kpfu.itis.paramonov.combinatorika.R
 import ru.kpfu.itis.paramonov.combinatorika.presentation.base.BaseViewModel
 import ru.kpfu.itis.paramonov.combinatorika.presentation.exceptions.ComputationException
@@ -42,11 +44,13 @@ class MainViewModel @Inject constructor(
 
     private fun onGetResultIntent(intent: MainScreenIntent.OnGetResult) {
         viewModelScope.launch {
-            when (intent.req) {
-                is PlacementsRequest -> handlePlacements(intent.req)
-                is PermutationsRequest -> handlePermutations(intent.req)
-                is CombinationsRequest -> handleCombinations(intent.req)
-                is UrnSchemeRequest -> handleUrnScheme(intent.req)
+            withContext(Dispatchers.IO) {
+                when (intent.req) {
+                    is PlacementsRequest -> handlePlacements(intent.req)
+                    is PermutationsRequest -> handlePermutations(intent.req)
+                    is CombinationsRequest -> handleCombinations(intent.req)
+                    is UrnSchemeRequest -> handleUrnScheme(intent.req)
+                }
             }
         }
     }
